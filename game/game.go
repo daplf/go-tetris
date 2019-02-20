@@ -127,7 +127,14 @@ func generateNewPiece(board *board.Board) *piece.Piece {
 	blocks := make([]*block.Block, 4)
 
 	for i := 0; i < 4; i++ {
-		blocks[i] = block.CreateBlock(board.Width()/2+pieceCoords[0][i], board.Height()-2+pieceCoords[1][i], pieceType)
+		x := board.Width()/2 + pieceCoords[0][i]
+		y := board.Height() - 2 + pieceCoords[1][i]
+
+		if board.Squares()[y][x] != nil {
+			return nil
+		}
+
+		blocks[i] = block.CreateBlock(x, y, pieceType)
 	}
 
 	piece := piece.CreatePiece(blocks)
@@ -157,6 +164,10 @@ func (game *Game) makeMove(move Move) bool {
 	switch move {
 	case MoveDown:
 		res = game.movePieceDown()
+		if !res {
+			game.lastTime = time.Now()
+			game.executeFallCurrentPiece()
+		}
 		break
 	case MoveRight:
 		res = game.movePieceRight()
@@ -220,17 +231,26 @@ func (game *Game) rotatePieceLeft() bool {
 	return newState != oldState
 }
 
-// fallCurrentPiece moves current piece down
+// fallCurrentPiece moves current piece down if possible
 func (game *Game) fallCurrentPiece() {
 	now := time.Now()
 
 	if now.Sub(game.lastTime).Seconds() > oneSecond {
 		game.lastTime = now
-		res := game.makeMove(MoveDown)
+		res := game.movePieceDown()
 
 		if !res {
-			game.Board().DestroyFullRows()
-			game.currentPiece = generateNewPiece(game.board)
+			game.executeFallCurrentPiece()
 		}
+	}
+}
+
+// executeFallCurrentPiece moves current piece down
+func (game *Game) executeFallCurrentPiece() {
+	game.Board().DestroyFullRows()
+	game.currentPiece = generateNewPiece(game.board)
+
+	if game.currentPiece == nil {
+		game.running = false
 	}
 }
