@@ -32,6 +32,8 @@ const (
 	Closed = "Closed"
 
 	oneSecond = 1
+
+	scoreMultiplier = 20
 )
 
 // Move type
@@ -43,6 +45,7 @@ type Game struct {
 	board        *board.Board
 	currentPiece *piece.Piece
 	lastTime     time.Time
+	score        int
 }
 
 // IsRunning checks if game is running
@@ -53,6 +56,11 @@ func (game *Game) IsRunning() bool {
 // Board returns the game's board
 func (game *Game) Board() *board.Board {
 	return game.board
+}
+
+// Score returns the game's score
+func (game *Game) Score() int {
+	return game.score
 }
 
 // CreateGame creates a new game
@@ -247,7 +255,11 @@ func (game *Game) fallCurrentPiece() {
 
 // executeFallCurrentPiece moves current piece down
 func (game *Game) executeFallCurrentPiece() {
-	game.Board().DestroyFullRows()
+	numRowsDestroyed := game.Board().DestroyFullRows()
+	if numRowsDestroyed > 0 {
+		game.score += numRowsDestroyed * scoreMultiplier
+	}
+
 	game.currentPiece = generateNewPiece(game.board)
 
 	if game.currentPiece == nil {

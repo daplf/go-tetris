@@ -309,7 +309,7 @@ func getOldAndNewCoords(blockType block.Type, oldState, newState piece.State) ([
 }
 
 // DestroyFullRows destroys full rows
-func (board *Board) DestroyFullRows() {
+func (board *Board) DestroyFullRows() int {
 	fall := 0
 	for i := range board.squares {
 		full := true
@@ -344,4 +344,6 @@ func (board *Board) DestroyFullRows() {
 			i = oldI
 		}
 	}
+
+	return fall
 }

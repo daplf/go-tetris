@@ -1,6 +1,8 @@
 package renderer
 
 import (
+	"fmt"
+
 	"github.com/daplf/go-tetris/game"
 	"github.com/daplf/go-tetris/game/board"
 	"github.com/daplf/go-tetris/game/piece"
@@ -9,22 +11,29 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
+	"github.com/faiface/pixel/text"
 	"golang.org/x/image/colornames"
+	"golang.org/x/image/font/basicfont"
 )
 
 type windowSize = int
 type colorType = float64
 
 const (
-	windowWidth  = 400
-	windowHeight = 800
-	windowTitle  = "Tetris"
-	noColor      = "No color!"
+	windowWidthPixels  = 500
+	windowHeightPixels = 800
+	boardWidthPixels   = 400
+	boardHeightPixels  = 800
+	scoreTextXPixels   = 430
+	scoreTextYPixels   = 760
+	windowTitle        = "Tetris"
+	noColor            = "No color!"
 )
 
 // Renderer holds rendering logic
 type Renderer struct {
-	window *pixelgl.Window
+	window    *pixelgl.Window
+	scoreText *text.Text
 }
 
 // Window returns the window
@@ -34,18 +43,20 @@ func (renderer *Renderer) Window() *pixelgl.Window {
 
 // CreateRenderer creates a new renderer with default dimensions
 func CreateRenderer() *Renderer {
-	window := setupPixel()
+	window := setupWindow()
+	scoreText := setupScoreText()
 
 	return &Renderer{
-		window: window,
+		window:    window,
+		scoreText: scoreText,
 	}
 }
 
-// setupPixel setsup the OpenGL context and window
-func setupPixel() *pixelgl.Window {
+// setupWindow sets up the OpenGL context and window
+func setupWindow() *pixelgl.Window {
 	cfg := pixelgl.WindowConfig{
 		Title:  windowTitle,
-		Bounds: pixel.R(0, 0, windowWidth, windowHeight),
+		Bounds: pixel.R(0, 0, windowWidthPixels, windowHeightPixels),
 		VSync:  true,
 	}
 
@@ -55,6 +66,19 @@ func setupPixel() *pixelgl.Window {
 	}
 
 	return window
+}
+
+// setupScoreText sets up the text used for the score.
+func setupScoreText() *text.Text {
+	scoreAtlas := text.NewAtlas(
+		basicfont.Face7x13,
+		[]rune{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'},
+	)
+
+	scoreText := text.New(pixel.V(scoreTextXPixels, scoreTextYPixels), scoreAtlas)
+	scoreText.Color = colornames.Yellow
+
+	return scoreText
 }
 
 // DrawBoard draws the board on the screen
@@ -73,33 +97,52 @@ func (renderer *Renderer) DrawBoard(game *game.Game) {
 		}
 	}
 
+	renderer.drawScore(game.Score())
+
 	renderer.window.Update()
 }
 
 // drawBlock draws a block on the screen
 func (renderer *Renderer) drawBlock(block *block.Block, boardWidth, boardHeight board.Size) {
-	imd := imdraw.New(nil)
-
 	r, g, b, error := getBlockColor(block)
 
 	if error == consts.NoError {
-		imd.Color = pixel.RGB(r, g, b)
-
-		blockWidth := float64(windowWidth / boardWidth)
-		blockHeight := float64(windowHeight / boardHeight)
+		blockWidth := float64(boardWidthPixels / boardWidth)
+		blockHeight := float64(boardHeightPixels / boardHeight)
 		x1 := float64(block.X()) * blockWidth
 		y1 := float64(block.Y()) * blockHeight
 		x2 := x1 + blockWidth
 		y2 := y1 + blockHeight
 
-		imd.Push(pixel.V(x1, y1))
-		imd.Push(pixel.V(x2, y1))
-		imd.Push(pixel.V(x2, y2))
-		imd.Push(pixel.V(x1, y2))
-		imd.Polygon(0)
-
-		imd.Draw(renderer.window)
+		drawPolygon(
+			renderer.window,
+			pixel.RGB(r, g, b),
+			[][2]float64{
+				{x1, y1},
+				{x2, y1},
+				{x2, y2},
+				{x1, y2},
+			},
+		)
 	}
+}
+
+// drawScore draws the score on the screen.
+func (renderer *Renderer) drawScore(score int) {
+	drawPolygon(
+		renderer.window,
+		pixel.RGB(0, 0, 1),
+		[][2]float64{
+			{boardWidthPixels, 0},
+			{windowHeightPixels, 0},
+			{windowHeightPixels, windowHeightPixels},
+			{boardWidthPixels, windowHeightPixels},
+		},
+	)
+
+	renderer.scoreText.Clear()
+	fmt.Fprintln(renderer.scoreText, score)
+	renderer.scoreText.Draw(renderer.window, pixel.IM.Scaled(renderer.scoreText.Orig, 2))
 }
 
 // getBlockColor gets a block's color
@@ -127,4 +170,19 @@ func getBlockColor(block *block.Block) (colorType, colorType, colorType, consts.
 	}
 
 	return pieceColor[0], pieceColor[1], pieceColor[2], error
+}
+
+// drawPolygon draws a poligon on the given target
+func drawPolygon(target pixel.Target, color pixel.RGBA, vertices [][2]float64) {
+	imd := imdraw.New(nil)
+
+	imd.Color = color
+
+	for _, row := range vertices {
+		imd.Push(pixel.V(row[0], row[1]))
+	}
+
+	imd.Polygon(0)
+
+	imd.Draw(target)
 }
