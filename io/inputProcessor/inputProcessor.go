@@ -44,6 +44,10 @@ func getJustPressed(renderer *renderer.Renderer) game.Move {
 		move = game.RotateRight
 	}
 
+	if renderer.Window().JustPressed(pixelgl.KeyP) {
+		move = game.Paused
+	}
+
 	return move
 }
 

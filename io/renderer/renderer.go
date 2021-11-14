@@ -26,14 +26,17 @@ const (
 	boardHeightPixels  = 800
 	scoreTextXPixels   = 430
 	scoreTextYPixels   = 760
+	pausedTextXPixels  = 430
+	pausedTextYPixels  = 560
 	windowTitle        = "Tetris"
 	noColor            = "No color!"
 )
 
 // Renderer holds rendering logic
 type Renderer struct {
-	window    *pixelgl.Window
-	scoreText *text.Text
+	window     *pixelgl.Window
+	scoreText  *text.Text
+	pausedText *text.Text
 }
 
 // Window returns the window
@@ -45,10 +48,12 @@ func (renderer *Renderer) Window() *pixelgl.Window {
 func CreateRenderer() *Renderer {
 	window := setupWindow()
 	scoreText := setupScoreText()
+	pausedText := setupPausedText()
 
 	return &Renderer{
-		window:    window,
-		scoreText: scoreText,
+		window:     window,
+		scoreText:  scoreText,
+		pausedText: pausedText,
 	}
 }
 
@@ -81,6 +86,19 @@ func setupScoreText() *text.Text {
 	return scoreText
 }
 
+// setupPauseText sets up the text used for the paused status indicator.
+func setupPausedText() *text.Text {
+	pausedAtlas := text.NewAtlas(
+		basicfont.Face7x13,
+		text.ASCII,
+	)
+
+	pausedText := text.New(pixel.V(pausedTextXPixels, pausedTextYPixels), pausedAtlas)
+	pausedText.Color = colornames.Yellow
+
+	return pausedText
+}
+
 // DrawBoard draws the board on the screen
 func (renderer *Renderer) DrawBoard(game *game.Game) {
 	renderer.window.Clear(colornames.Black)
@@ -97,7 +115,7 @@ func (renderer *Renderer) DrawBoard(game *game.Game) {
 		}
 	}
 
-	renderer.drawScore(game.Score())
+	renderer.drawInfoTab(game)
 
 	renderer.window.Update()
 }
@@ -128,7 +146,7 @@ func (renderer *Renderer) drawBlock(block *block.Block, boardWidth, boardHeight 
 }
 
 // drawScore draws the score on the screen.
-func (renderer *Renderer) drawScore(score int) {
+func (renderer *Renderer) drawInfoTab(game *game.Game) {
 	drawPolygon(
 		renderer.window,
 		pixel.RGB(0, 0, 1),
@@ -141,8 +159,17 @@ func (renderer *Renderer) drawScore(score int) {
 	)
 
 	renderer.scoreText.Clear()
-	fmt.Fprintln(renderer.scoreText, score)
+	fmt.Fprintln(renderer.scoreText, game.Score())
 	renderer.scoreText.Draw(renderer.window, pixel.IM.Scaled(renderer.scoreText.Orig, 2))
+
+	pausedText := ""
+	if game.IsPaused() {
+		pausedText = "Paused"
+	}
+
+	renderer.pausedText.Clear()
+	fmt.Fprintln(renderer.pausedText, pausedText)
+	renderer.pausedText.Draw(renderer.window, pixel.IM.Scaled(renderer.pausedText.Orig, 1.5))
 }
 
 // getBlockColor gets a block's color

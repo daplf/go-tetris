@@ -28,6 +28,8 @@ const (
 	// NoMove represents no move
 	NoMove = ""
 
+	Paused = "Paused"
+
 	// Closed is a flag used to tell the game to finish (because the window was closed)
 	Closed = "Closed"
 
@@ -41,11 +43,13 @@ type Move = string
 
 // Game holds the game logic
 type Game struct {
-	running      bool
-	board        *board.Board
-	currentPiece *piece.Piece
-	lastTime     time.Time
-	score        int
+	running           bool
+	board             *board.Board
+	currentPiece      *piece.Piece
+	lastTime          time.Time
+	score             int
+	paused            bool
+	timeSinceLastMove time.Duration
 }
 
 // IsRunning checks if game is running
@@ -61,6 +65,11 @@ func (game *Game) Board() *board.Board {
 // Score returns the game's score
 func (game *Game) Score() int {
 	return game.score
+}
+
+// IsPaused checks if the game is paused.
+func (game *Game) IsPaused() bool {
+	return game.paused
 }
 
 // CreateGame creates a new game
@@ -154,16 +163,28 @@ func generateNewPiece(board *board.Board) *piece.Piece {
 
 // Update updates the game
 func (game *Game) Update(move Move) {
-	if move != NoMove {
-		if move == Closed {
-			game.running = false
-			return
-		}
+	if move == Paused {
+		game.paused = !game.paused
 
-		game.makeMove(move)
+		if game.paused {
+			game.timeSinceLastMove = time.Now().Sub(game.lastTime)
+		} else {
+			game.lastTime = time.Now().Add(-1 * game.timeSinceLastMove)
+		}
 	}
 
-	game.fallCurrentPiece()
+	if !game.paused {
+		if move != NoMove {
+			if move == Closed {
+				game.running = false
+				return
+			}
+
+			game.makeMove(move)
+		}
+
+		game.fallCurrentPiece()
+	}
 }
 
 func (game *Game) makeMove(move Move) bool {
